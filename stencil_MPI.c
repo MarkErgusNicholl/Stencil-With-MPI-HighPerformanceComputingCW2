@@ -109,7 +109,6 @@ int main(int argc, char *argv[]) {
   if (rank != size-1)
   {
     MPI_Recv(&localimage[(local_ncols+1)*ny], ny, MPI_FLOAT, right, 0, MPI_COMM_WORLD, &status);
-    printf("RECEIVED! %d", rank);
   }
   // THEN SEND RIGHT
   if (rank != size-1)
@@ -119,13 +118,6 @@ int main(int argc, char *argv[]) {
   if (rank != 0)
   {
     MPI_Recv(&localimage[0], ny, MPI_FLOAT, left, 0, MPI_COMM_WORLD, &status);
-    printf("RECEIVED! %d", rank);
-  }
-
-  if (rank == MASTER)
-  {
-    output_image("CHECK.pgm", local_ncols +2, ny, localimage);
-    free(image);
   }
 
   /*-----------------------------------------------------------START STENCIL-----------------------------------------------------------*/
@@ -148,7 +140,7 @@ int main(int argc, char *argv[]) {
     // SEND HALO LEFT FIRST
     if (rank != 0)
     {
-      MPI_Ssend(&tmp_localimage[1*ny], ny, MPI_FLOAT, left, 0, MPI_COMM_WORLD);
+      MPI_Send(&tmp_localimage[1*ny], ny, MPI_FLOAT, left, 0, MPI_COMM_WORLD);
     }
     if (rank != size-1)
     {
@@ -157,7 +149,7 @@ int main(int argc, char *argv[]) {
     // THEN SEND RIGHT
     if (rank != size-1)
     {
-      MPI_Ssend(&tmp_localimage[(local_ncols)*ny], ny, MPI_FLOAT, right, 0, MPI_COMM_WORLD);
+      MPI_Send(&tmp_localimage[(local_ncols)*ny], ny, MPI_FLOAT, right, 0, MPI_COMM_WORLD);
     }
     if (rank != 0)
     {
@@ -182,7 +174,7 @@ int main(int argc, char *argv[]) {
     // SEND HALO LEFT FIRST
     if (rank != 0)
     {
-      MPI_Ssend(&localimage[1*ny], ny, MPI_FLOAT, left, 0, MPI_COMM_WORLD);
+      MPI_Send(&localimage[1*ny], ny, MPI_FLOAT, left, 0, MPI_COMM_WORLD);
     }
     if (rank != size-1)
     {
@@ -191,7 +183,7 @@ int main(int argc, char *argv[]) {
     // THEN SEND RIGHT
     if (rank != size-1)
     {
-      MPI_Ssend(&localimage[(local_ncols)*ny], ny, MPI_FLOAT, right, 0, MPI_COMM_WORLD);
+      MPI_Send(&localimage[(local_ncols)*ny], ny, MPI_FLOAT, right, 0, MPI_COMM_WORLD);
     }
     if (rank != 0)
     {
@@ -202,6 +194,7 @@ int main(int argc, char *argv[]) {
 
   /*-----------------------------------------------------------END STENCIL-----------------------------------------------------------*/
 
+  // GATHER RESULTS
   if (rank == 0) 
   {
     for(j=1; j<local_ncols+1; ++j)
@@ -228,11 +221,6 @@ int main(int argc, char *argv[]) {
       }
   }
 
-  if (rank == 0) 
-  {
-    printf("REACHES HERE, RANK : %d\n", rank);
-  }
-
   if (rank == MASTER)
   {
     // Output
@@ -242,11 +230,19 @@ int main(int argc, char *argv[]) {
     printf("With %d processes\n", size);
 
     output_image(OUTPUT_FILE, nx, ny, result);
-    free(image);
+    
   }
 
   /* don't forget to tidy up when we're done */
   MPI_Finalize();
+
+  /* free up allocated memory */
+  free(result);
+  free(image);
+  free(tmp_image);
+  free(localimage);
+  free(tmp_localimage);
+
 
   /* and exit the program */
   return EXIT_SUCCESS;
